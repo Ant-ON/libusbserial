@@ -26,10 +26,13 @@
 
 #define FTDI_PRODUCT_ID_FT232R 0x6001
 #define FTDI_PRODUCT_ID_FT232R_FAKE 0x0000
+#define FTDI_PRODUCT_ID_FT232RL 0xFBFA
 #define FTDI_PRODUCT_ID_FT2232 0x6010
 #define FTDI_PRODUCT_ID_FT4232H 0x6011
 #define FTDI_PRODUCT_ID_FT232H 0x6014
 #define FTDI_PRODUCT_ID_FT231X 0x6015
+#define FTDI_PRODUCT_ID_STK500 0xfa33
+
 
 #define FTDI_SIO_RESET 0
 #define FTDI_SIO_MODEM_CTRL 1
@@ -70,10 +73,12 @@
 #define FTDI_WRITE_ENDPOINT(i) (0x02 + 2 * i)
 
 static const char* FTDI_DEVICE_NAME_FT232R = "FT232R";
+static const char* FTDI_DEVICE_NAME_FT232RL = "FT232RL";
 static const char* FTDI_DEVICE_NAME_FT2232 = "FT2232";
 static const char* FTDI_DEVICE_NAME_FT4232H = "FT4232H";
 static const char* FTDI_DEVICE_NAME_FT232H = "FT232H";
 static const char* FTDI_DEVICE_NAME_FT231X = "FT231X";
+static const char* FTDI_DEVICE_NAME_STK500 = "STK500";
 static const char* FTDI_DEVICE_NAME_GENERIC = "FTDI";
 
 enum ftdi_device_type
@@ -151,10 +156,12 @@ int ftdi_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
 	{
 	case FTDI_PRODUCT_ID_FT232R:
 	case FTDI_PRODUCT_ID_FT232R_FAKE:
+	case FTDI_PRODUCT_ID_FT232RL:
 	case FTDI_PRODUCT_ID_FT2232:
 	case FTDI_PRODUCT_ID_FT4232H:
 	case FTDI_PRODUCT_ID_FT231X:
-	case FTDI_PRODUCT_ID_FT232H: return 1;
+	case FTDI_PRODUCT_ID_FT232H:
+	case FTDI_PRODUCT_ID_STK500: return 1;
 
 	default: return 0;
 	}
@@ -172,7 +179,9 @@ static const char* ftdi_get_device_name(uint16_t vid, uint16_t pid, uint8_t clas
     case FTDI_PRODUCT_ID_FT4232H: return FTDI_DEVICE_NAME_FT4232H;
     case FTDI_PRODUCT_ID_FT232H: return FTDI_DEVICE_NAME_FT232H;		
     case FTDI_PRODUCT_ID_FT231X: return FTDI_DEVICE_NAME_FT231X;
-
+	case FTDI_PRODUCT_ID_FT232RL: return FTDI_DEVICE_NAME_FT232RL;
+	case FTDI_PRODUCT_ID_STK500: return FTDI_DEVICE_NAME_STK500;
+	
     default: return FTDI_DEVICE_NAME_GENERIC;
     }
 }
@@ -183,14 +192,10 @@ static unsigned int ftdi_get_ports_count(uint16_t vid, uint16_t pid)
 
     switch (pid)
     {
-    case FTDI_PRODUCT_ID_FT232R:
-    case FTDI_PRODUCT_ID_FT232R_FAKE:
-	case FTDI_PRODUCT_ID_FT232H:
-    case FTDI_PRODUCT_ID_FT231X: return 1;
     case FTDI_PRODUCT_ID_FT2232: return 2;
     case FTDI_PRODUCT_ID_FT4232H: return 4;
 
-    default: return 0;
+    default: return 1;
     }
 }
 

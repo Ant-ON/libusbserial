@@ -26,6 +26,8 @@
 #define SILABS_VENDOR_ID 0x10c4
 
 #define SILABS_PRODUCT_ID_CP2102 0xea60
+#define SILABS_PRODUCT_ID_CP210x 0xea61
+#define SILABS_PRODUCT_ID_CP2102N 0xea63 // CP2101-4/CP2102N
 #define SILABS_PRODUCT_ID_CP2105 0xea70
 #define SILABS_PRODUCT_ID_CP2108 0xea71
 #define SILABS_PRODUCT_ID_CP2110 0xea80
@@ -92,6 +94,8 @@ static int silabs_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
 	switch (pid)
 	{
 	case SILABS_PRODUCT_ID_CP2102:
+	case SILABS_PRODUCT_ID_CP210x:
+	case SILABS_PRODUCT_ID_CP2102N:
 	case SILABS_PRODUCT_ID_CP2105:
 	case SILABS_PRODUCT_ID_CP2108:
 	case SILABS_PRODUCT_ID_CP2110: return 1;
@@ -119,11 +123,8 @@ static unsigned int silabs_get_ports_count(uint16_t vid, uint16_t pid)
 
     switch (pid)
     {
-    case SILABS_PRODUCT_ID_CP2102:
-    case SILABS_PRODUCT_ID_CP2110: return 1;
-    case SILABS_PRODUCT_ID_CP2105: return 2;
     case SILABS_PRODUCT_ID_CP2108: return 4;
-    default: return 0;
+    default: return 1;
     }
 }
 

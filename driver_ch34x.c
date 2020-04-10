@@ -25,6 +25,7 @@
 #define HC43X_VENDOR_ID 0x1a86
 #define HC43X_PRODUCT_ID_HL340 0x7523
 #define HC43X_PRODUCT_ID_HL341 0x5523
+#define HC43X_PRODUCT_ID_HL34X 0x0445
 
 #define REQTYPE_HOST_FROM_DEVICE (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN)
 #define REQTYPE_HOST_TO_DEVICE (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
@@ -69,7 +70,9 @@ static const struct baud_mapping baud_lookup_table [] =
 static int ch34x_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
 {
     return ((HC43X_VENDOR_ID == vid)
-            && (HC43X_PRODUCT_ID_HL340 == pid || HC43X_PRODUCT_ID_HL341 == pid));
+            && (HC43X_PRODUCT_ID_HL340 == pid || 
+				HC43X_PRODUCT_ID_HL341 == pid ||
+				HC43X_PRODUCT_ID_HL34X == pid));
 }
 
 static const char* ch34x_get_device_name(uint16_t vid, uint16_t pid, uint8_t classs, uint8_t subclass)
