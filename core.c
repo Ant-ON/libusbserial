@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2022 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -24,11 +24,11 @@
 #include <assert.h>
 #include <stdlib.h>
 
-struct usbserial_driver *usbserial_driver_ftdi;
-struct usbserial_driver *usbserial_driver_silabs;
-struct usbserial_driver *usbserial_driver_ch34x;
-struct usbserial_driver *usbserial_driver_pl2303;
-struct usbserial_driver *usbserial_driver_cdc;
+extern struct usbserial_driver *usbserial_driver_ftdi;
+extern struct usbserial_driver *usbserial_driver_silabs;
+extern struct usbserial_driver *usbserial_driver_ch34x;
+extern struct usbserial_driver *usbserial_driver_pl2303;
+extern struct usbserial_driver *usbserial_driver_cdc;
 
 static const struct usbserial_driver* find_driver_for_usb_device(uint16_t vid, uint16_t pid, uint8_t class, uint8_t subclass)
 {
