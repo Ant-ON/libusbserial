@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -89,18 +89,18 @@ static inline int silabs_set_config(struct usbserial_port *port,
 static int silabs_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
 {
     if (SILABS_VENDOR_ID != vid)
-		return 0;
+        return 0;
 
-	switch (pid)
-	{
-	case SILABS_PRODUCT_ID_CP2102:
-	case SILABS_PRODUCT_ID_CP210x:
-	case SILABS_PRODUCT_ID_CP2102N:
-	case SILABS_PRODUCT_ID_CP2105:
-	case SILABS_PRODUCT_ID_CP2108:
-	case SILABS_PRODUCT_ID_CP2110: return 1;
-	default: return 0;
-	}
+    switch (pid)
+    {
+    case SILABS_PRODUCT_ID_CP2102:
+    case SILABS_PRODUCT_ID_CP210x:
+    case SILABS_PRODUCT_ID_CP2102N:
+    case SILABS_PRODUCT_ID_CP2105:
+    case SILABS_PRODUCT_ID_CP2108:
+    case SILABS_PRODUCT_ID_CP2110: return 1;
+    default: return 0;
+    }
 }
 
 static const char* silabs_get_device_name(uint16_t vid, uint16_t pid, uint8_t classs, uint8_t subclass)
@@ -137,12 +137,12 @@ static int silabs_port_init(struct usbserial_port *port)
 
     ret = libusb_claim_interface(port->usb_dev_hdl, port->port_idx);
     if (ret)
-		return ret;
+        return ret;
 
     ret = silabs_set_config(port, SILABS_IFC_REQUEST_CODE,
                 SILABS_IFC_UART_ENABLE_VALUE);
     if (ret)
-		goto failed;
+        goto failed;
 
     ret = silabs_set_config(port, SILABS_BAUDDIV_REQUEST_CODE,
                 SILABS_MHS_MCR_DTR_VALUE
@@ -150,21 +150,21 @@ static int silabs_port_init(struct usbserial_port *port)
                     | SILABS_MHS_CTRL_DTR_VALUE
                     | SILABS_MHS_CTLR_RTS_VALUE);
     if (ret)
-		goto failed;
+        goto failed;
 
     ret = silabs_set_config(port, SILABS_BAUDDIV_REQUEST_CODE,
                 SILABS_BAUDDIV_GEN_FREQ_VALUE
                     / SILABS_DEFAULT_BAUD_RATE);
     if (ret)
-		goto failed;
+        goto failed;
 
-	ret = silabs_set_config(port, SILABS_MHS_REQUEST_CODE, 0x00);
+    ret = silabs_set_config(port, SILABS_MHS_REQUEST_CODE, 0x00);
     if (ret)
-		goto failed;
+        goto failed;
 
-	port->endp.in = SILABS_READ_ENDPOINT(port->port_idx);
-	port->endp.out = SILABS_WRITE_ENDPOINT(port->port_idx);
-	port->endp.in_if = port->endp.out_if = port->port_idx;
+    port->endp.in = SILABS_READ_ENDPOINT(port->port_idx);
+    port->endp.out = SILABS_WRITE_ENDPOINT(port->port_idx);
+    port->endp.in_if = port->endp.out_if = port->port_idx;
 
     return 0;
 
@@ -244,7 +244,7 @@ static int silabs_port_set_config(struct usbserial_port *port, const struct usbs
     if (ret > 0)
     {
         if (ret == sizeof(data))
-			return 0;
+            return 0;
         return USBSERIAL_ERROR_CTRL_CMD_FAILED;
     }
     return ret;
@@ -284,7 +284,7 @@ static int silabs_purge(struct usbserial_port *port, int rx, int tx)
     assert(port);
 
     uint16_t value =  (rx ? SILABS_FLUSH_RX_VALUE : 0)
-					| (tx ? SILABS_FLUSH_TX_VALUE : 0);
+                    | (tx ? SILABS_FLUSH_TX_VALUE : 0);
     return silabs_set_config(port, SILABS_FLUSH_REQUEST_CODE, value);
 }
 
@@ -293,8 +293,8 @@ static int silabs_set_dtr_rts(struct usbserial_port *port, int dtr, int rts)
     assert(port);
 
     uint16_t value =  (dtr?SILABS_MHS_DTR_ON:SILABS_MHS_DTR_OFF)
-					| (rts?SILABS_MHS_RTS_ON:SILABS_MHS_RTS_OFF);
-	return silabs_set_config(port, SILABS_MHS_REQUEST_CODE, value);
+                    | (rts?SILABS_MHS_RTS_ON:SILABS_MHS_RTS_OFF);
+    return silabs_set_config(port, SILABS_MHS_REQUEST_CODE, value);
 }
 
 const struct usbserial_driver driver_silabs =
@@ -308,10 +308,10 @@ const struct usbserial_driver driver_silabs =
     .port_set_config = silabs_port_set_config,
     .start_reader = silabs_start_reader,
     .stop_reader = silabs_stop_reader,
-	.read = silabs_read,
+    .read = silabs_read,
     .write = silabs_write,
     .purge = silabs_purge,
-	.set_dtr_rts = silabs_set_dtr_rts,
+    .set_dtr_rts = silabs_set_dtr_rts,
     .read_data_process = NULL,
 };
 

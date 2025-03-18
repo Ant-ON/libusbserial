@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -47,7 +47,7 @@ struct usbserial_driver
             struct usbserial_port *port,
             void *data,
             size_t size,
-			int timeout);
+            int timeout);
     int (*write)(
             struct usbserial_port *port,
             const void *data,
@@ -61,8 +61,8 @@ struct usbserial_driver
             struct usbserial_port *port,
             void *data,
             size_t *size);
-			
-	int (*set_dtr_rts)(
+
+    int (*set_dtr_rts)(
             struct usbserial_port *port,
             int dtr,
             int rts);

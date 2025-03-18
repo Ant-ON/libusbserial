@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ static void usbserial_io_default_read_transfer_callback(struct libusb_transfer* 
 {
     assert(transfer);
 
-	int ret;
+    int ret;
     struct usbserial_port *port = (struct usbserial_port*) transfer->user_data;
     assert(port);
 
@@ -39,30 +39,30 @@ static void usbserial_io_default_read_transfer_callback(struct libusb_transfer* 
             || (LIBUSB_TRANSFER_TIMED_OUT == transfer->status))
     {
         size_t count = (size_t)transfer->actual_length;
-		if (count > 0)
-		{
-			if (port->driver->read_data_process)
-				port->driver->read_data_process(port, transfer->buffer, &count);
-			if (count > 0)
-				port->cb_read(transfer->buffer, count, port->cb_user_data);
-		}
+        if (count > 0)
+        {
+            if (port->driver->read_data_process)
+                port->driver->read_data_process(port, transfer->buffer, &count);
+            if (count > 0)
+                port->cb_read(transfer->buffer, count, port->cb_user_data);
+        }
     } else
     {
         if (port->cb_read_error)
-			port->cb_read_error(transfer->status, port->cb_user_data);
+            port->cb_read_error(transfer->status, port->cb_user_data);
     }
 
-	if (port->read_cancel_flag)
-	{
-		libusb_free_transfer(port->read_transfer);
-		port->read_transfer = NULL;
-	} else
-	{
-		// Re-submit the transfer
-		ret = libusb_submit_transfer(transfer);
-		if (ret)
-			printf("submitting. error code: %d\n", ret);
-	}
+    if (port->read_cancel_flag)
+    {
+        libusb_free_transfer(port->read_transfer);
+        port->read_transfer = NULL;
+    } else
+    {
+        // Re-submit the transfer
+        ret = libusb_submit_transfer(transfer);
+        if (ret)
+            printf("submitting. error code: %d\n", ret);
+    }
 
     ret = pthread_mutex_unlock(&port->mutex);
     assert(0 == ret);
@@ -70,16 +70,16 @@ static void usbserial_io_default_read_transfer_callback(struct libusb_transfer* 
 
 int usbserial_io_init_bulk_read_transfer(struct usbserial_port *port)
 {
-	assert(port);
+    assert(port);
 
     int ret;
 
     port->read_transfer = libusb_alloc_transfer(0);
     if (!port->read_transfer)
-		return USBSERIAL_ERROR_RESOURCE_ALLOC_FAILED;
+        return USBSERIAL_ERROR_RESOURCE_ALLOC_FAILED;
 
-	ret = pthread_mutex_lock(&port->mutex);
-	assert(0 == ret);
+    ret = pthread_mutex_lock(&port->mutex);
+    assert(0 == ret);
 
     port->read_cancel_flag = 0;
 
@@ -93,36 +93,36 @@ int usbserial_io_init_bulk_read_transfer(struct usbserial_port *port)
                 port,
                 DEFAULT_READ_TIMEOUT_MILLIS);
 
-	ret = pthread_mutex_unlock(&port->mutex);
-	assert(0 == ret);
-	
-	ret = libusb_submit_transfer(port->read_transfer);
+    ret = pthread_mutex_unlock(&port->mutex);
+    assert(0 == ret);
+    
+    ret = libusb_submit_transfer(port->read_transfer);
     if (ret)
-	{
-		libusb_free_transfer(port->read_transfer);
-		port->read_transfer = NULL;
-	}
-	return ret;
+    {
+        libusb_free_transfer(port->read_transfer);
+        port->read_transfer = NULL;
+    }
+    return ret;
 }
 
 int usbserial_io_cancel_bulk_read_transfer(struct usbserial_port *port)
 {
     assert(port);
 
-	int ret;
+    int ret;
 
-	if (!port->read_transfer)
-		return USBSERIAL_ERROR_ILLEGAL_STATE;
+    if (!port->read_transfer)
+        return USBSERIAL_ERROR_ILLEGAL_STATE;
 
-	port->read_cancel_flag = 1;
-	
-	ret = pthread_mutex_lock(&port->mutex);
-	assert(0 == ret);
+    port->read_cancel_flag = 1;
+    
+    ret = pthread_mutex_lock(&port->mutex);
+    assert(0 == ret);
 
-	libusb_cancel_transfer(port->read_transfer);
+    libusb_cancel_transfer(port->read_transfer);
 
-	ret = pthread_mutex_unlock(&port->mutex);
-	assert(0 == ret);
+    ret = pthread_mutex_unlock(&port->mutex);
+    assert(0 == ret);
 
     return 0;
 }
@@ -144,9 +144,9 @@ int usbserial_io_bulk_read(struct usbserial_port *port,
                     (unsigned char*) data,
                     (int) size,
                     &actual_length,
-					0);
+                    0);
     if (ret < 0)
-    	return ret;
+        return ret;
     return actual_length;
 }
 
@@ -156,11 +156,11 @@ int usbserial_io_bulk_write(struct usbserial_port *port,
     assert(port);
     assert((!size) || data);
 
-	int ret;
+    int ret;
     int actual_length;
 
     if (!size)
-		return 0;
+        return 0;
 
     ret = libusb_bulk_transfer(
                     port->usb_dev_hdl,
@@ -171,8 +171,8 @@ int usbserial_io_bulk_write(struct usbserial_port *port,
                     0);
     if (!ret || ret == LIBUSB_ERROR_TIMEOUT)
     {
-        if (actual_length < 0 || actual_length == (int)size)
-			return ret;
+        if (actual_length <= 0 || actual_length == (int)size)
+            return ret;
 
         return usbserial_io_bulk_write(
                     port,
@@ -184,103 +184,108 @@ int usbserial_io_bulk_write(struct usbserial_port *port,
 
 int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs)
 {
-	assert(port);
-	
-	int ret;
-	uint8_t i, j;
+    assert(port);
+    
+    int ret;
+    uint8_t i, j;
     int in_ep_status = 0, out_ep_status = 0;
-	struct libusb_config_descriptor *config = NULL;
-	
-	ret = libusb_get_active_config_descriptor(port->usb_dev, &config);
-	if (ret) 
-		return ret;
-	assert(config);
-	
-	for (i = 0; i < config->bNumInterfaces; ++i)
-	{
-		const struct libusb_interface* interface = &config->interface[i];
-		assert(interface);
-		
-		if (!interface->altsetting ||
-				(classs && classs != interface->altsetting->bInterfaceClass))
-			continue;
+    struct libusb_config_descriptor *config = NULL;
 
-		if (classs)
-			in_ep_status = out_ep_status = 0;
-		if (interface->altsetting->bNumEndpoints > 0)
-		{
-			for (j = 0; j < interface->altsetting->bNumEndpoints; ++j)
-			{
-				const struct libusb_endpoint_descriptor* endpoint
-						= &interface->altsetting->endpoint[j];
+    ret = libusb_get_active_config_descriptor(port->usb_dev, &config);
+    if (ret == LIBUSB_ERROR_NOT_FOUND)
+    {
+        libusb_set_configuration(port->usb_dev_hdl, 0);
+        ret = libusb_get_active_config_descriptor(port->usb_dev, &config);
+    }
+    if (ret)
+        return ret;
+    assert(config);
 
-				if ((endpoint->bmAttributes&0x02) == LIBUSB_TRANSFER_TYPE_BULK)
-				{
-					if (endpoint->bEndpointAddress & LIBUSB_ENDPOINT_IN)
-					{
-						if (!in_ep_status)
-						{
-							in_ep_status = 1;
-							port->endp.in = endpoint->bEndpointAddress;
-							port->endp.in_if = i;
-						}
-					}
-					else
-					{
-						if (!out_ep_status)
-						{
-							out_ep_status = 1;
-							port->endp.out = endpoint->bEndpointAddress;
-							port->endp.out_if = i;
-						}
-					}
-				}
-			}
-		}
-		
-		if (out_ep_status && in_ep_status)
-			break;
-	}
-	libusb_free_config_descriptor(config);
-	
-	if (!out_ep_status || ! in_ep_status)
-	{
-		ret = USBSERIAL_ERROR_UNSUPPORTED_DEVICE;
-		goto failed;
-	}
+    for (i = 0; i < config->bNumInterfaces; ++i)
+    {
+        const struct libusb_interface* interface = &config->interface[i];
+        assert(interface);
+        
+        if (!interface->altsetting ||
+                (classs && classs != interface->altsetting->bInterfaceClass))
+            continue;
 
-	ret = libusb_claim_interface(port->usb_dev_hdl, port->endp.in_if);
+        if (classs)
+            in_ep_status = out_ep_status = 0;
+        if (interface->altsetting->bNumEndpoints > 0)
+        {
+            for (j = 0; j < interface->altsetting->bNumEndpoints; ++j)
+            {
+                const struct libusb_endpoint_descriptor* endpoint
+                        = &interface->altsetting->endpoint[j];
+
+                if ((endpoint->bmAttributes&0x02) == LIBUSB_TRANSFER_TYPE_BULK)
+                {
+                    if (endpoint->bEndpointAddress & LIBUSB_ENDPOINT_IN)
+                    {
+                        if (!in_ep_status)
+                        {
+                            in_ep_status = 1;
+                            port->endp.in = endpoint->bEndpointAddress;
+                            port->endp.in_if = i;
+                        }
+                    }
+                    else
+                    {
+                        if (!out_ep_status)
+                        {
+                            out_ep_status = 1;
+                            port->endp.out = endpoint->bEndpointAddress;
+                            port->endp.out_if = i;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (out_ep_status && in_ep_status)
+            break;
+    }
+    libusb_free_config_descriptor(config);
+    
+    if (!out_ep_status || ! in_ep_status)
+    {
+        ret = USBSERIAL_ERROR_UNSUPPORTED_DEVICE;
+        goto failed;
+    }
+
+    ret = libusb_claim_interface(port->usb_dev_hdl, port->endp.in_if);
     if (ret) 
-		goto failed;
+        goto failed;
     in_ep_status = 2;
-	
-	if (port->endp.in_if != port->endp.out_if)
-	{
-		ret = libusb_claim_interface(port->usb_dev_hdl, port->endp.out_if);
-		if (ret) 
-			goto failed;
-		out_ep_status = 2;
-	}
+    
+    if (port->endp.in_if != port->endp.out_if)
+    {
+        ret = libusb_claim_interface(port->usb_dev_hdl, port->endp.out_if);
+        if (ret) 
+            goto failed;
+        out_ep_status = 2;
+    }
 
-	return 0;
-	
+    return 0;
+    
 failed:
-	if (in_ep_status == 2)
-		libusb_release_interface(port->usb_dev_hdl, port->endp.in_if);
-	if (out_ep_status == 2)
-		libusb_release_interface(port->usb_dev_hdl, port->endp.out_if);
-	memset(&port->endp, 0, sizeof(struct usbserial_endpoints));
-	return ret;
+    if (in_ep_status == 2)
+        libusb_release_interface(port->usb_dev_hdl, port->endp.in_if);
+    if (out_ep_status == 2)
+        libusb_release_interface(port->usb_dev_hdl, port->endp.out_if);
+    memset(&port->endp, 0, sizeof(struct usbserial_endpoints));
+    return ret;
 }
 
 int usbserial_io_free_endpoint(struct usbserial_port *port)
 {
-	if (!port->endp.out && !port->endp.in)
-		return USBSERIAL_ERROR_ILLEGAL_STATE;
-	
-	libusb_release_interface(port->usb_dev_hdl, port->endp.in_if);
-	if (port->endp.out_if != port->endp.in_if)
-		libusb_release_interface(port->usb_dev_hdl, port->endp.out_if);
-	memset(&port->endp, 0, sizeof(struct usbserial_endpoints));
-	return 0;
+    if (!port->endp.out && !port->endp.in)
+        return USBSERIAL_ERROR_ILLEGAL_STATE;
+    
+    libusb_release_interface(port->usb_dev_hdl, port->endp.in_if);
+    if (port->endp.out_if != port->endp.in_if)
+        libusb_release_interface(port->usb_dev_hdl, port->endp.out_if);
+    memset(&port->endp, 0, sizeof(struct usbserial_endpoints));
+    return 0;
 }

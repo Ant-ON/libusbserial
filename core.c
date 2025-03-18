@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019-2022 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -32,25 +32,25 @@ extern struct usbserial_driver *usbserial_driver_cdc;
 
 static const struct usbserial_driver* find_driver_for_usb_device(uint16_t vid, uint16_t pid, uint8_t class, uint8_t subclass)
 {
-	const struct usbserial_driver* drivers[] =
-	{
-		usbserial_driver_ftdi,
-		usbserial_driver_silabs,
-		usbserial_driver_ch34x,
-		usbserial_driver_pl2303,
-		usbserial_driver_cdc,
-		NULL
-	};
+    const struct usbserial_driver* drivers[] =
+    {
+        usbserial_driver_ftdi,
+        usbserial_driver_silabs,
+        usbserial_driver_ch34x,
+        usbserial_driver_pl2303,
+        usbserial_driver_cdc,
+        NULL
+    };
 
-	const struct usbserial_driver **driver = drivers;
-	while (*driver)
-	{
-		if ((*driver)->check_supported_by_vid_pid && (*driver)->check_supported_by_vid_pid(vid, pid))
-			return *driver;
-		if ((*driver)->check_supported_by_class && (*driver)->check_supported_by_class(class, subclass))
-			return *driver;
-		driver++;
-	}
+    const struct usbserial_driver **driver = drivers;
+    while (*driver)
+    {
+        if ((*driver)->check_supported_by_vid_pid && (*driver)->check_supported_by_vid_pid(vid, pid))
+            return *driver;
+        if ((*driver)->check_supported_by_class && (*driver)->check_supported_by_class(class, subclass))
+            return *driver;
+        driver++;
+    }
 
     return NULL;
 }
@@ -64,24 +64,24 @@ const char* usbserial_get_device_name(uint16_t vid, uint16_t pid, uint8_t class,
 {
     const struct usbserial_driver* driver = find_driver_for_usb_device(vid, pid, class, subclass);
     if (!driver)
-		return NULL;
+        return NULL;
     return driver->get_device_name(vid, pid, class, subclass);
 }
 
 const char* usbserial_get_device_name2(struct usbserial_port *port)
 {
     if (!port)
-		return NULL;
+        return NULL;
     return port->driver->get_device_name(
-    			port->usb_dev_desc.idVendor, port->usb_dev_desc.idProduct,
-				port->usb_dev_desc.bDeviceClass, port->usb_dev_desc.bDeviceSubClass);
+                port->usb_dev_desc.idVendor, port->usb_dev_desc.idProduct,
+                port->usb_dev_desc.bDeviceClass, port->usb_dev_desc.bDeviceSubClass);
 }
 
 unsigned int usbserial_get_ports_count(uint16_t vid, uint16_t pid, uint8_t class, uint8_t subclass)
 {
     const struct usbserial_driver* driver = find_driver_for_usb_device(vid, pid, class, subclass);
     if (!driver)
-		return 0;
+        return 0;
     return driver->get_ports_count(vid, pid);
 }
 
@@ -93,25 +93,25 @@ int usbserial_port_init(
         usbserial_cb_error_fn cb_read_error,
         void* cb_user_data)
 {
-	int ret;
-	libusb_device *usb_dev;
-	const struct usbserial_driver *driver;
+    int ret;
+    libusb_device *usb_dev;
+    const struct usbserial_driver *driver;
     struct usbserial_port *port = 0;
     struct libusb_device_descriptor usb_dev_desc;
     int mutex_init = 0;
 
     if (!out_port || !usb_dev_hdl)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
 
     *out_port = NULL;
 
     usb_dev = libusb_get_device(usb_dev_hdl);
     if (!usb_dev)
-		return USBSERIAL_ERROR_NO_SUCH_DEVICE;
+        return USBSERIAL_ERROR_NO_SUCH_DEVICE;
 
     ret = libusb_get_device_descriptor(usb_dev, &usb_dev_desc);
     if (ret)
-		goto failed;
+        goto failed;
 
     driver = find_driver_for_usb_device(usb_dev_desc.idVendor, usb_dev_desc.idProduct,
                 usb_dev_desc.bDeviceClass, usb_dev_desc.bDeviceSubClass);
@@ -141,7 +141,7 @@ int usbserial_port_init(
     }
 
     port->driver = driver;
-	port->usb_dev = usb_dev;
+    port->usb_dev = usb_dev;
     port->usb_dev_hdl = usb_dev_hdl;
     port->usb_dev_desc = usb_dev_desc;
     port->port_idx = port_idx;
@@ -157,7 +157,7 @@ int usbserial_port_init(
 
     ret = driver->port_init(port);
     if (ret) 
-		goto failed;
+        goto failed;
 
     *out_port = port;
 
@@ -179,10 +179,10 @@ failed:
 int usbserial_port_deinit(struct usbserial_port *port)
 {
     int ret;
-	
+    
     if (!port)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
-	
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
+    
     ret = port->driver->port_deinit(port);
     free(port);
     return ret;
@@ -191,30 +191,30 @@ int usbserial_port_deinit(struct usbserial_port *port)
 int usbserial_port_set_config(struct usbserial_port *port, const struct usbserial_config *config)
 {
     if (!port || !config)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
     return port->driver->port_set_config(port, config);
 }
 
 int usbserial_start_reader(struct usbserial_port *port)
 {
     if (!port)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
     if (!port->cb_read)
-		return USBSERIAL_ERROR_ILLEGAL_STATE;
+        return USBSERIAL_ERROR_ILLEGAL_STATE;
     return port->driver->start_reader(port);
 }
 
 int usbserial_stop_reader(struct usbserial_port *port)
 {
     if (!port)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
     return port->driver->stop_reader(port);
 }
 
 int usbserial_write(struct usbserial_port *port, const void *data, size_t bytes_count)
 {
     if (!port)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
     return port->driver->write(port, data, bytes_count);
 }
 
@@ -228,6 +228,6 @@ int usbserial_purge(struct usbserial_port *port, int rx, int tx)
 int usbserial_set_dtr_rts(struct usbserial_port *port, int dtr, int rts)
 {
     if (!port)
-		return USBSERIAL_ERROR_INVALID_PARAMETER;
+        return USBSERIAL_ERROR_INVALID_PARAMETER;
     return port->driver->set_dtr_rts(port, dtr, rts);
 }

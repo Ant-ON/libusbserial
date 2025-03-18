@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019-2022 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@
 #define CDC_CONTROL_LINE_STATE_RTS   0x2
 #define CDC_CONTROL_LINE_STATE_DTR   0x1
 
-#define USB_CLASS_CDC_DATA           0x0a
+#define USB_CLASS_CDC_DATA           0x0A
 
 static const char* CDC_DEVICE_NAME_ARDUINO = "CDC Arduino";
 static const char* CDC_DEVICE_NAME_QINHENG = "CDC Qinheng";
@@ -79,9 +79,9 @@ static int cdc_set_dtr_rts(
 static int cdc_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
 {
     if (QINHENG_VENDOR_ID == vid && CDC_DEVICE_CH9102F == pid)
-		return 1;
+        return 1;
 
-	return 0;
+    return 0;
 }
 
 static int cdc_check_supported_by_class(uint8_t class, uint8_t subclass)

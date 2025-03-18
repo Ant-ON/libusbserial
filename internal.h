@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -37,33 +37,33 @@
 
 struct usbserial_endpoints
 {
-	uint8_t in;
-	uint8_t out;
-	uint8_t in_if;
-	uint8_t out_if;
+    uint8_t in;
+    uint8_t out;
+    uint8_t in_if;
+    uint8_t out_if;
 };
 
 struct usbserial_port
 {
     const struct usbserial_driver *driver;
 
-	unsigned int port_idx;
-	struct usbserial_endpoints endp;
-	
-	libusb_device *usb_dev;
+    unsigned int port_idx;
+    struct usbserial_endpoints endp;
+
+    libusb_device *usb_dev;
     libusb_device_handle *usb_dev_hdl;
     struct libusb_device_descriptor usb_dev_desc;
 
-	struct libusb_transfer *read_transfer;
+    struct libusb_transfer *read_transfer;
     usbserial_cb_read_fn cb_read;
     usbserial_cb_error_fn cb_read_error;
     void *cb_user_data;
 
-	pthread_mutex_t mutex;
-	volatile int read_cancel_flag;
+    pthread_mutex_t mutex;
+    volatile int read_cancel_flag;
     unsigned char read_buffer[READ_BUFFER_SIZE];
 
-	void *driver_data;
+    void *driver_data;
 };
 
 #endif // LIBUSBSERIAL_INTERNAL_H

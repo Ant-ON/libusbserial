@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -85,7 +85,7 @@ unsigned int usbserial_get_ports_count(uint16_t vid, uint16_t pid, uint8_t class
  * (usbserial_start_reader() is not called afterwards).
  * read_error_cb can be NULL, then no read error notifications are sent. */
 int usbserial_port_init(struct usbserial_port **out_port,
-		libusb_device_handle *usb_device_handle, unsigned int port_idx,
+        libusb_device_handle *usb_device_handle, unsigned int port_idx,
         usbserial_cb_read_fn cb_read, usbserial_cb_error_fn read_error_cb, void* cb_user_data);
 /* Deinitialize / invalidate a serial port instance.
  * Returns zero on success, and an error code on failure.

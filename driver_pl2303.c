@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019-2022 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -42,8 +42,8 @@
 #define PL2303_GET_VENDOR                   0x01
 #define PL2303_GET_N_VENDOR                 0x81
 
-#define PL2303_SET_VENDOR                    0x01
-#define PL2303_SET_N_VENDOR                    0x80
+#define PL2303_SET_VENDOR                   0x01
+#define PL2303_SET_N_VENDOR                 0x80
 
 #define PL2303_FLUSH_RX_VALUE               0x08
 #define PL2303_FLUSH_TX_VALUE               0x09
@@ -90,8 +90,8 @@ static inline int pl2303_vendor_write(struct usbserial_port *port,
                 DEFAULT_CONTROL_TIMEOUT_MILLIS);
 }
 
-static inline int pl2303_vendor_read(struct usbserial_port *port, 
-        uint16_t value, unsigned char buf[1])
+static int pl2303_vendor_read(struct usbserial_port *port, 
+        uint16_t value, unsigned char *buf)
 {
     struct pl2303_data *pdata = (struct pl2303_data*)port->driver_data;
 
