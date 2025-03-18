@@ -155,6 +155,12 @@ int usbserial_port_init(
         goto failed;
     }
 
+    for (int inf = 0; inf < usb_dev_desc.bNumConfigurations; inf++)
+    {
+        if (libusb_kernel_driver_active(port->usb_dev_hdl, inf) == 1)
+            libusb_detach_kernel_driver(port->usb_dev_hdl, inf);
+    }
+
     ret = driver->port_init(port);
     if (ret) 
         goto failed;

@@ -133,8 +133,8 @@ int usbserial_io_bulk_read(struct usbserial_port *port,
     assert(port);
     assert((0 == size) || data);
 
-    int actual_length;
     int ret;
+    int actual_length = 0;
 
     if (0 == size) return 0;
 
@@ -157,7 +157,7 @@ int usbserial_io_bulk_write(struct usbserial_port *port,
     assert((!size) || data);
 
     int ret;
-    int actual_length;
+    int actual_length = 0;
 
     if (!size)
         return 0;
@@ -182,7 +182,7 @@ int usbserial_io_bulk_write(struct usbserial_port *port,
     return ret;
 }
 
-int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs)
+int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs, int last)
 {
     assert(port);
     
@@ -223,7 +223,7 @@ int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs)
                 {
                     if (endpoint->bEndpointAddress & LIBUSB_ENDPOINT_IN)
                     {
-                        if (!in_ep_status)
+                        if (!in_ep_status || last)
                         {
                             in_ep_status = 1;
                             port->endp.in = endpoint->bEndpointAddress;
@@ -232,7 +232,7 @@ int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs)
                     }
                     else
                     {
-                        if (!out_ep_status)
+                        if (!out_ep_status || last)
                         {
                             out_ep_status = 1;
                             port->endp.out = endpoint->bEndpointAddress;

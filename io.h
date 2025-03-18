@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -20,6 +20,11 @@
 
 #include "internal.h"
 
+#define USB_CLASS_ANY                    0x00
+
+#define F_ENDPOINTS_USE_FIRST            0x00
+#define F_ENDPOINTS_USE_LAST             0x01
+
 int usbserial_io_init_bulk_read_transfer(struct usbserial_port *port);
 
 int usbserial_io_cancel_bulk_read_transfer(struct usbserial_port *port);
@@ -30,7 +35,7 @@ int usbserial_io_bulk_read(struct usbserial_port *port,
 int usbserial_io_bulk_write(struct usbserial_port *port,
         const void *data, size_t size);
 
-int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs);
+int usbserial_io_get_endpoint(struct usbserial_port *port, uint8_t classs, int last);
 
 int usbserial_io_free_endpoint(struct usbserial_port *port);
 

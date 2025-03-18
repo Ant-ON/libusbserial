@@ -113,7 +113,7 @@ static int cdc_port_init(struct usbserial_port *port)
 {
     assert(port);
 
-    int ret = usbserial_io_get_endpoint(port, USB_CLASS_CDC_DATA);
+    int ret = usbserial_io_get_endpoint(port, USB_CLASS_CDC_DATA, F_ENDPOINTS_USE_FIRST);
     if (ret)
         return ret;
 

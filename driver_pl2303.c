@@ -56,6 +56,16 @@
 #define PL2303_CONTROL_LINE_STATE_RTS         0x2
 #define PL2303_CONTROL_LINE_STATE_DTR         0x1
 
+#define PL2303_FLOWCTRL                     0x80
+#define PL2303_FLOWCTRL_MASK                  0xF0
+#define PL2303_FLOWCTRL_NONE                  0x00
+
+#define PL2303_FLOWCTRL_N                   0x0A
+#define PL2303_FLOWCTRL_N_MASK                0x1C
+#define PL2303_FLOWCTRL_N_NONE                0x1C
+#define PL2303_FLOWCTRL_N_RTS_CTS             0x18
+#define PL2303_FLOWCTRL_N_XON_XOFF            0x0C
+
 enum pl2303_device_type
 {
     PL2303_TYPE_UNKNOWN = 0,
@@ -74,7 +84,7 @@ struct pl2303_data
 
 static const char *PROLIFIC_DEVICE_NAME_PL2303 = "PL2303";
 
-static inline int pl2303_vendor_write(struct usbserial_port *port,
+static int pl2303_vendor_write(struct usbserial_port *port,
         uint16_t value, uint16_t index)
 {
     struct pl2303_data *pdata = (struct pl2303_data*)port->driver_data;
@@ -90,7 +100,7 @@ static inline int pl2303_vendor_write(struct usbserial_port *port,
                 DEFAULT_CONTROL_TIMEOUT_MILLIS);
 }
 
-static int pl2303_vendor_read(struct usbserial_port *port, 
+static int pl2303_vendor_read(struct usbserial_port *port,
         uint16_t value, unsigned char *buf)
 {
     struct pl2303_data *pdata = (struct pl2303_data*)port->driver_data;
@@ -106,9 +116,10 @@ static int pl2303_vendor_read(struct usbserial_port *port,
                 DEFAULT_CONTROL_TIMEOUT_MILLIS);
     if (ret == 1)
         return 0;
-    if (ret > 0)
+    else if (ret > 0)
         return USBSERIAL_ERROR_CTRL_CMD_FAILED;
-    return ret;
+    else
+        return ret;
 }
 
 static inline int pl2303_ctrl(struct usbserial_port *port,
@@ -214,6 +225,29 @@ static enum pl2303_device_type pl2303_detect_type(struct libusb_device_descripto
     return PL2303_TYPE_UNKNOWN;
 }
 
+static int pl2303_purge(struct usbserial_port *port, int rx, int tx)
+{
+    assert(port);
+
+    struct pl2303_data *pdata = (struct pl2303_data*)port->driver_data;
+    int p_rx_ret = 0, p_tx_ret = 0;
+
+    if (pdata->type == PL2303_TYPE_HXN)
+    {
+        int index = 0;
+        if (rx) index |= PL2303_FLUSH_N_VALUE_RX;
+        if (tx) index |= PL2303_FLUSH_N_VALUE_TX;
+        if (index)
+            p_rx_ret = pl2303_vendor_write(port, PL2303_FLUSH_N_VALUE, index);
+    } else
+    {
+        if (rx) p_rx_ret = pl2303_vendor_write(port, PL2303_FLUSH_RX_VALUE, 0);
+        if (tx) p_tx_ret = pl2303_vendor_write(port, PL2303_FLUSH_TX_VALUE, 0);
+    }
+
+    return p_rx_ret ? p_rx_ret : p_tx_ret;
+}
+
 static int pl2303_port_init(struct usbserial_port *port)
 {
     assert(port);
@@ -223,9 +257,22 @@ static int pl2303_port_init(struct usbserial_port *port)
         return -1;
 
     unsigned char buf[1];
-    int ret = usbserial_io_get_endpoint(port, 0);
+    int ret = usbserial_io_get_endpoint(port, USB_CLASS_ANY, F_ENDPOINTS_USE_LAST);
     if (ret)
         return ret;
+
+    struct pl2303_data* pdata = (struct pl2303_data*) malloc(sizeof(struct pl2303_data));
+    if (!pdata)
+    {
+        ret = USBSERIAL_ERROR_RESOURCE_ALLOC_FAILED;
+        goto relase_if_and_return;
+    }
+    pdata->type = type;
+
+    port->driver_data = pdata;
+
+    pl2303_set_dtr_rts(port, 0, 0);
+    pl2303_purge(port, 1, 1);
 
     if (type != PL2303_TYPE_HXN)
     {
@@ -240,30 +287,24 @@ static int pl2303_port_init(struct usbserial_port *port)
         pl2303_vendor_write(port, 0, 1);
         pl2303_vendor_write(port, 1, 0);
         pl2303_vendor_write(port, 2, type==PL2303_TYPE_H ? 0x24 : 0x44);
-        pl2303_vendor_write(port, 3, 0);
-        pl2303_set_dtr_rts(port, 0, 0);
-        pl2303_vendor_write(port, 0x0505, 0x1311);
     }
-
-    struct pl2303_data* pdata = (struct pl2303_data*) malloc(sizeof(struct pl2303_data));
-    if (!pdata)
-    {
-        ret = USBSERIAL_ERROR_RESOURCE_ALLOC_FAILED;
-        goto relase_if_and_return;
-    }
-    pdata->type = type;
 
     return 0;
 
 relase_if_and_return:
     assert(ret != 0);
-    libusb_release_interface(port->usb_dev_hdl, port->port_idx);
+    usbserial_io_free_endpoint(port);
     return ret;
 }
 
 static int pl2303_port_deinit(struct usbserial_port *port)
 {
     assert(port);
+
+    if (!port->driver_data)
+        return USBSERIAL_ERROR_ILLEGAL_STATE;
+    free(port->driver_data);
+    port->driver_data = NULL;
 
     return usbserial_io_free_endpoint(port);
 }
@@ -275,7 +316,7 @@ static int pl2303_port_set_config(struct usbserial_port *port, const struct usbs
 
     int ret;
     unsigned char data[7];
-    unsigned char stop_bits_byte, parity_byte, data_bits_byte;
+    unsigned char stop_bits_byte, parity_byte;
     uint32_t baud = config->baud; /* we don't check the baudrate to correct value */
 
     switch (config->stop_bits)
@@ -298,20 +339,21 @@ static int pl2303_port_set_config(struct usbserial_port *port, const struct usbs
     default: return USBSERIAL_ERROR_INVALID_PARAMETER;
     }
 
-    data_bits_byte = (unsigned char) config->data_bits;
-
-    baud = htole32(baud); /* to LE */
-    memcpy(data, &baud, 4);
+    data[0] = (baud & 0xff);
+    data[1] = ((baud >> 8) & 0xff);
+    data[2] = ((baud >> 16) & 0xff);
+    data[3] = ((baud >> 24) & 0xff);
     data[4] = stop_bits_byte;
     data[5] = parity_byte;
-    data[6] = data_bits_byte;
+    data[6] = (unsigned char) config->data_bits;
 
     ret = pl2303_ctrl(port, PL2303_SET_LINE_CODING, 0, data, sizeof(data));
     if (ret == sizeof(data)) 
         return 0;
-    if (ret > 0)
+    else if (ret > 0)
         return USBSERIAL_ERROR_CTRL_CMD_FAILED;
-    return ret;
+    else
+        return ret;
 }
 
 static int pl2303_start_reader(struct usbserial_port *port)
@@ -348,29 +390,6 @@ static int pl2303_write(
     assert(port);
 
     return usbserial_io_bulk_write(port, data, size);
-}
-
-static int pl2303_purge(struct usbserial_port *port, int rx, int tx)
-{
-    assert(port);
-
-    struct pl2303_data *pdata = (struct pl2303_data*)port->driver_data;
-    int p_rx_ret = 0, p_tx_ret = 0;
-
-    if (pdata->type == PL2303_TYPE_HXN)
-    {
-        int index = 0;
-        if (rx) index |= PL2303_FLUSH_N_VALUE_RX;
-        if (tx) index |= PL2303_FLUSH_N_VALUE_TX;
-        if (index) 
-            p_rx_ret = pl2303_vendor_write(port, PL2303_FLUSH_N_VALUE, index);
-    } else
-    {
-        if (rx) p_rx_ret = pl2303_vendor_write(port, PL2303_FLUSH_RX_VALUE, 0);
-        if (tx) p_tx_ret = pl2303_vendor_write(port, PL2303_FLUSH_TX_VALUE, 0);
-    }
-
-    return p_rx_ret ? p_rx_ret : p_tx_ret;
 }
 
 const struct usbserial_driver driver_pl2303 =
