@@ -1,7 +1,7 @@
 /*
  * libusbserial
  * 
- * Copyright (C) 2019-2022 Anton Prozorov <prozanton@gmail.com>
+ * Copyright (C) 2019-2025 Anton Prozorov <prozanton@gmail.com>
  * Copyright (c) 2014-2015 Felix Hädicke
  * 
  * This library is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define CH43X_VENDOR_WCH          0x4348 // WinChipHead
@@ -33,9 +34,11 @@
 #define REQTYPE_HOST_FROM_DEVICE  (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN)
 #define REQTYPE_HOST_TO_DEVICE    (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
 
-#define CH34X_REQ_CTL             0xA4
-#define CH34X_REQ_WRITE_REG       0x9A
+#define CH34X_REQ_READ_VERSION    0x5F
 #define CH34X_REQ_READ_REG        0x95
+#define CH34X_REQ_WRITE_REG       0x9A
+#define CH34X_REQ_SERIAL_INIT     0xA1
+#define CH34X_REQ_CTL             0xA4
 
 #define CH34X_LCR_ENABLE_RX       0x80
 #define CH34X_LCR_ENABLE_TX       0x40
@@ -48,39 +51,17 @@
 #define CH34X_LCR_CS6             0x01
 #define CH34X_LCR_CS5             0x00
 
-#define CH34X_BIT_RTS             (1 << 6)
-#define CH34X_BIT_DTR             (1 << 5)
-
 #define CH34X_STAT_CTS            0x01
 #define CH34X_STAT_DSR            0x02
 #define CH34X_STAT_RI             0x04
 #define CH34X_STAT_DCD            0x08
-#define CH34X_STAT_MASK           0x0F
+#define CH34X_STAT_DTR            0x20
+#define CH34X_STAT_RTS            0x40
+#define CH34X_STAT_MASK           0x6F
 
-struct baud_mapping 
+struct ch34x_data
 {
-    int baud;
-    unsigned b1312;
-    unsigned b0f2c;
-};
-
-// Baud rates values
-static const struct baud_mapping baud_lookup_table [] = 
-{
-    { 300,     0xd980, 0xeb },
-    { 600,     0x6481, 0x76 },
-    { 1200,    0xb281, 0x3b },
-    { 2400,    0xd981, 0x1e },
-    { 4800,    0x6482, 0x0f },
-    { 9600,    0xb282, 0x08 },
-    { 19200,   0xd982, 0x07 },
-    { 38400,   0x6483, 0x07 },
-    { 57600,   0x9883, 0x07 },
-    { 115200,  0xcc83, 0x07 },
-    { 230400,  0xe683, 0x07 },
-    { 460800,  0xf383, 0x07 },
-    { 921600,  0xf387, 0x07 },
-    { 0,       0x0000, 0x00 }
+    uint8_t version;
 };
 
 static int ch34x_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
@@ -91,7 +72,8 @@ static int ch34x_check_supported_by_vid_pid(uint16_t vid, uint16_t pid)
                     CH43X_PRODUCT_ID_CH341 == pid ||
                     CH43X_PRODUCT_ID_CH34X == pid)) ||
             ((CH43X_VENDOR_WCH == vid)
-                && (CH43X_PRODUCT_ID_CH340 == pid));
+                && (CH43X_PRODUCT_ID_CH340 == pid ||
+                    CH43X_PRODUCT_ID_CH341 == pid));
 }
 
 static const char* ch34x_get_device_name(uint16_t vid, uint16_t pid, uint8_t classs, uint8_t subclass)
@@ -102,18 +84,6 @@ static const char* ch34x_get_device_name(uint16_t vid, uint16_t pid, uint8_t cla
 static unsigned int ch34x_get_ports_count(uint16_t vid, uint16_t pid)
 {
     return 1;
-}
-
-static const struct baud_mapping* ch34x_serial_baud(int baud)
-{
-    const struct baud_mapping *map = baud_lookup_table;
-    while (map->baud)
-    {
-        if (map->baud == baud)
-            return map;
-        map++;
-    }
-    return NULL;
 }
 
 static int ch34x_set_req(struct usbserial_port *port, int request, int value, int index)
@@ -132,10 +102,10 @@ static int ch34x_set_req(struct usbserial_port *port, int request, int value, in
 static int ch34x_get_req(struct usbserial_port *port, int request, int value, int index, void *data, int len)
 {
     int ret;
-    
+
     if (!data)
         len = 0;
-    
+
     return libusb_control_transfer(
             port->usb_dev_hdl,
             REQTYPE_HOST_FROM_DEVICE,
@@ -154,68 +124,55 @@ static int ch34x_get_status(struct usbserial_port *port)
     return (ret == 2) ? (buffer[0] & CH34X_STAT_MASK) : -1;
 }
 
-static int ch34x_init_reg(struct usbserial_port *port)
+static int ch34x_set_baud_rate(struct usbserial_port *port, int rate)
 {
-    /* 
-     * Init the device at 9600 bauds
-     */
+    const unsigned long FACTOR = 1532620800;
+    const unsigned char DIV = 3;
 
-    // DIVISOR + PRESCALER
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x1312, 0xb282) < 0)
-        return -1;
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x0f2c, 0x0008) < 0)
-        return -1;
+    unsigned long factor;
+    unsigned char divisor;
 
-    // LCR2 + LCR
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2518, CH34X_LCR_ENABLE_RX | CH34X_LCR_ENABLE_TX | CH34X_LCR_CS8) < 0)
-        return -1;
+    switch (rate)
+    {
+    case 921600:
+        factor = 0xF3;
+        divisor = 7;
+        break;
+    case 307200:
+        factor = 0xD9;
+        divisor = 7;
+        break;
+    default:
+        factor = FACTOR / rate;
+        divisor = DIV;
+        while ((factor > 0xFFF0) && divisor > 0)
+        {
+            factor >>= 3;
+            divisor--;
+        }
 
-    if(ch34x_get_status(port) < 0)
-        return -1;
+        if (factor > 0xFFF0)
+            return USBSERIAL_ERROR_UNSUPPORTED_BAUD_RATE;
 
-    // Flow Control
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2727, 0x0000) < 0)
+        factor = 0x10000 - factor;
+        break;
+    }
+
+    divisor |= 0x0080;
+    int b1312 = (factor & 0xFF00) | divisor;
+    int b0F2C = factor & 0xFF;
+
+    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x1312, b1312) < 0)
+        return -1;
+    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x0F2C, b0F2C) < 0)
         return -1;
     return 0;
 }
 
-static int ch34x_init(struct usbserial_port *port)
-{
-    assert(port);
-
-    int ret = usbserial_io_get_endpoint(port, 0);
-    if (ret)
-        return ret;
-    
-    ret = ch34x_init_reg(port);
-    if (ret)
-        goto failed;
-
-    return 0;
-
-failed:
-    assert(ret != 0);
-    usbserial_io_free_endpoint(port);
-    return ret;
-}
-
-static int ch34x_deinit(struct usbserial_port *port)
-{
-    assert(port);
-
-    return usbserial_io_free_endpoint(port);
-}
-
-static int ch34x_set_config(
-        struct usbserial_port *port,
-        const struct usbserial_config* config)
+static int ch34x_set_config(struct usbserial_port *port, const struct usbserial_config* config)
 {
     assert(port);
     assert(config);
-
-    const struct baud_mapping *baud = ch34x_serial_baud(config->baud);
-    if (!baud)
-        return USBSERIAL_ERROR_UNSUPPORTED_BAUD_RATE;
 
     unsigned lcr = CH34X_LCR_ENABLE_RX | CH34X_LCR_ENABLE_TX;
     switch (config->stop_bits)
@@ -248,20 +205,19 @@ static int ch34x_set_config(
     default: return USBSERIAL_ERROR_INVALID_PARAMETER;
     }
 
-    // DIVISOR + PRESCALER
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x1312, baud->b1312) < 0)
-        return -1;
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x0f2c, baud->b0f2c) < 0)
-        return -1;
+    int ret = ch34x_set_baud_rate(port, config->baud);
+    if (ret)
+        return ret;
+
     // LCR2 + LCR
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2518, lcr) < 0)
+    if (ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2518, lcr) < 0)
         return -1;
 
-    if(ch34x_get_status(port) < 0)
+    if (ch34x_get_status(port) < 0)
         return -1;
 
     // Flow Control - NONE
-    if(ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2727, 0x0000) < 0)
+    if (ch34x_set_req(port, CH34X_REQ_WRITE_REG, 0x2727, 0x0000) < 0)
         return -1;
 
     return 0;
@@ -289,20 +245,14 @@ static int ch34x_read(struct usbserial_port *port, void *data, size_t size, int 
     return usbserial_io_bulk_read(port, data, size, timeout);
 }
 
-static int ch34x_write(
-        struct usbserial_port *port,
-        const void *data,
-        size_t size)
+static int ch34x_write(struct usbserial_port *port, const void *data, size_t size)
 {
     assert(port);
 
     return usbserial_io_bulk_write(port, data, size);
 }
 
-static int ch34x_purge(
-        struct usbserial_port *port,
-        int rx,
-        int tx)
+static int ch34x_purge(struct usbserial_port *port, int rx, int tx)
 {
     assert(port);
 
@@ -313,7 +263,77 @@ static int ch34x_set_dtr_rts(struct usbserial_port *port, int dtr, int rts)
 {
     assert(port);
 
-    return ch34x_set_req(port, CH34X_REQ_CTL, ~((dtr ? CH34X_BIT_DTR : 0) | (rts ? CH34X_BIT_RTS : 0)), 0);
+    return ch34x_set_req(port, CH34X_REQ_CTL, ~((dtr ? CH34X_STAT_DTR : 0) | (rts ? CH34X_STAT_RTS : 0)), 0);
+}
+
+
+static int ch34x_init(struct usbserial_port *port)
+{
+    struct ch34x_data* pdata;
+    uint8_t buffer[2];
+    struct usbserial_config config;
+
+    assert(port);
+
+    // Default
+    config.baud = 9600;
+    config.data_bits = USBSERIAL_DATABITS_8;
+    config.stop_bits = USBSERIAL_STOPBITS_1;
+    config.parity = USBSERIAL_PARITY_NONE;
+
+    int ret = usbserial_io_get_endpoint(port, USB_CLASS_ANY, F_ENDPOINTS_USE_FIRST);
+    if (ret)
+        return ret;
+
+    ret = ch34x_get_req(port, CH34X_REQ_READ_VERSION, 0, 0, buffer, 2);
+    if (ret)
+        buffer[0] =  0;
+    else
+        printf("CH34X version: 0x%02x\n", buffer[0]);
+
+    if(ch34x_set_req(port, CH34X_REQ_SERIAL_INIT, 0, 0) < 0)
+    {
+        ret = USBSERIAL_ERROR_ILLEGAL_STATE;
+        goto failed;
+    }
+
+    ret = ch34x_set_config(port, &config);
+    if (ret)
+        goto failed;
+
+    ret = ch34x_set_dtr_rts(port, 1, 1);
+    if (ret)
+        goto failed;
+
+    ret = ch34x_get_status(port);
+    if(ret < 0)
+        goto failed;
+
+    pdata = (struct ch34x_data*) malloc(sizeof(struct ch34x_data));
+    if (!pdata)
+    {
+        ret = USBSERIAL_ERROR_RESOURCE_ALLOC_FAILED;
+        goto failed;
+    }
+    pdata->version = buffer[0];
+    port->driver_data = pdata;
+
+    return 0;
+
+failed:
+    assert(ret != 0);
+    usbserial_io_free_endpoint(port);
+    return ret;
+}
+
+static int ch34x_deinit(struct usbserial_port *port)
+{
+    assert(port);
+
+    free(port->driver_data);
+    port->driver_data = NULL;
+
+    return usbserial_io_free_endpoint(port);
 }
 
 const struct usbserial_driver driver_ch34x =
